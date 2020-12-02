@@ -10,7 +10,7 @@ eg:
 # Getting Started!
 
  1. Clone repo into your application
- 2. Import into your flask project ```from requester import requester```
+ 2. Import into your flask project ```from flask_requester import requester```
 
 # Example Usage
 simple-form.html
