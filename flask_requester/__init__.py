@@ -129,7 +129,7 @@ class requester(object):
         cls.file(key).__dict__['filename'] = str(uuid.uuid4()) + "." + extension
         with cls.file(key).__dict__['stream'] as f:
             file_guts = f.read()
-        with open(f'C:\\Users\\botto\\PycharmProjects\\Flask-Crudy\\{cls.file(key).__dict__["filename"]}', 'wb') as output:
+        with open(f'{location}\\{cls.file(key).__dict__["filename"]}', 'wb') as output:
             output.write(file_guts)
         return cls.file(key)
 
