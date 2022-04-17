@@ -4,18 +4,23 @@ import uuid
 import os.path
 
 
-
 class requester(object):
     @classmethod
     def formDict(cls, url):
         url = 'localhost?' + url
+        print(dict(parse.parse_qsl(parse.urlsplit(url).query)))
         return dict(parse.parse_qsl(parse.urlsplit(url).query))
+
+    @classmethod
+    def params(cls):
+        if request.method == "GET":
+            return cls.formDict(request.query_string.decode('utf-8'))
 
     @classmethod
     def all(cls):
         if request.method == 'GET':
             return cls.formDict(request.query_string.decode('utf-8'))
-        elif request.method == 'POST':
+        elif request.method == 'POST' or request.method == 'PUT':
             if request.files and request.form:
                 files = request.files.to_dict()
                 form = request.form.to_dict()
@@ -124,12 +129,49 @@ class requester(object):
                 return True
 
     @classmethod
-    def store(cls, key, location):
+    def store(cls, key):
         extension = os.path.splitext(cls.file(key).__dict__['filename'])[1][1:].strip()
         cls.file(key).__dict__['filename'] = str(uuid.uuid4()) + "." + extension
         with cls.file(key).__dict__['stream'] as f:
             file_guts = f.read()
-        with open(f'{location}\\{cls.file(key).__dict__["filename"]}', 'wb') as output:
+        with open(r'UPLOADS\\' + f'{cls.file(key).__dict__["filename"]}', 'wb') as output:
             output.write(file_guts)
-        return cls.file(key)
+        return cls.file(key).__dict__['filename']
+
+    @classmethod
+    def upload_multiple(cls, key):
+        saved_file_path_list = []
+        files = request.files.getlist(f'{key}')
+        for file in files:
+
+            extension = os.path.splitext(file.filename)[1][1:].strip()
+            file.filename = str(uuid.uuid4()) + "." + extension
+            with file.stream as f:
+                file_guts = f.read()
+            with open(r'UPLOADS\\' + f'{file.filename}', 'wb') as output:
+                output.write(file_guts)
+            saved_file_path_list.append(file.filename)
+
+        return saved_file_path_list
+
+    @classmethod
+    def get_path(self):
+        return request.path
+
+    @classmethod
+    def get_path_with_query(self) -> str:
+
+        query_string = request.query_string.decode('utf-8')
+        if query_string:
+            return self.get_path() + "?" + query_string
+        else:
+            return self.get_path()
+
+    @classmethod
+    def get_back_path(self) -> str:
+        return request.referrer
+
+    @classmethod
+    def get_request_method(self) -> str:
+        return request.method
 
