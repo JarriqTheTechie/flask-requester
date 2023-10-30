@@ -1,23 +1,20 @@
-from urllib import parse
-from flask import Flask, request, flash
-import uuid
 import os.path
+import uuid
+from urllib import parse
+
+from flask import request, flash
 
 
 class requester(object):
     @classmethod
     def formDict(cls, url):
         url = 'localhost?' + url
-        print(dict(parse.parse_qsl(parse.urlsplit(url).query)))
         return dict(parse.parse_qsl(parse.urlsplit(url).query))
 
     @classmethod
-    def params(cls):
-        if request.method == "GET":
-            return cls.formDict(request.query_string.decode('utf-8'))
-
-    @classmethod
-    def all(cls):
+    def all(cls, arrays=None):
+        if arrays is None:
+            arrays = []
         if request.method == 'GET':
             return cls.formDict(request.query_string.decode('utf-8'))
         elif request.method == 'POST' or request.method == 'PUT':
@@ -26,17 +23,26 @@ class requester(object):
                 form = request.form.to_dict()
                 req = files.copy()
                 req.update(form)
+                for array in arrays:
+                    key = array
+                    data = request.form.getlist(f'{array}')
+                    req[key] = data
                 return req
             if request.files:
                 files = request.files.to_dict()
                 return files
             if request.form:
                 form = request.form.to_dict()
+                if len(arrays) > 0:
+                    for array in arrays:
+                        key = array
+                        data = request.form.getlist(f'{array}')
+                        form[key] = data
                 return form
 
     @classmethod
-    def input(cls, key):
-        return cls.all().get(key)
+    def input(cls, key, default=None):
+        return cls.all().get(key, default)
 
     @classmethod
     def boolean(cls, key):
@@ -129,9 +135,15 @@ class requester(object):
                 return True
 
     @classmethod
-    def store(cls, key):
+    def store(cls, key: str, prefix: str = "", suffix: str = "", prefix_separator: str = "", suffix_separator: str = "", keep_name=False):
         extension = os.path.splitext(cls.file(key).__dict__['filename'])[1][1:].strip()
-        cls.file(key).__dict__['filename'] = str(uuid.uuid4()) + "." + extension
+        if keep_name is True:
+            with cls.file(key).__dict__['stream'] as f:
+                file_guts = f.read()
+            with open(r'UPLOADS\\' + f'{prefix}{prefix_separator}{cls.file(key).__dict__["filename"]}', 'wb') as output:
+                output.write(file_guts)
+            return cls.file(key).__dict__['filename']
+        cls.file(key).__dict__['filename'] = f"{prefix}{prefix_separator}{str(uuid.uuid4())}{suffix_separator}{suffix}" + "." + extension
         with cls.file(key).__dict__['stream'] as f:
             file_guts = f.read()
         with open(r'UPLOADS\\' + f'{cls.file(key).__dict__["filename"]}', 'wb') as output:
@@ -139,39 +151,17 @@ class requester(object):
         return cls.file(key).__dict__['filename']
 
     @classmethod
-    def upload_multiple(cls, key):
+    def upload_multiple(cls, key, keep_name=False):
         saved_file_path_list = []
         files = request.files.getlist(f'{key}')
         for file in files:
-
             extension = os.path.splitext(file.filename)[1][1:].strip()
-            file.filename = str(uuid.uuid4()) + "." + extension
+            if keep_name is False:
+                file.filename = str(uuid.uuid4()) + "." + extension
             with file.stream as f:
                 file_guts = f.read()
             with open(r'UPLOADS\\' + f'{file.filename}', 'wb') as output:
                 output.write(file_guts)
             saved_file_path_list.append(file.filename)
-
         return saved_file_path_list
-
-    @classmethod
-    def get_path(self):
-        return request.path
-
-    @classmethod
-    def get_path_with_query(self) -> str:
-
-        query_string = request.query_string.decode('utf-8')
-        if query_string:
-            return self.get_path() + "?" + query_string
-        else:
-            return self.get_path()
-
-    @classmethod
-    def get_back_path(self) -> str:
-        return request.referrer
-
-    @classmethod
-    def get_request_method(self) -> str:
-        return request.method
 
